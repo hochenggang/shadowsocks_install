@@ -418,7 +418,7 @@ install_plugin(){
 config_shadowsocks_libev(){
     local server_value="\"0.0.0.0\""
     if get_ipv6; then
-        server_value="[\"[::0]\",\"0.0.0.0\"]"
+        server_value="\"::\"",
     fi
 
     mkdir -p "$(dirname ${shadowsocks_libev_config})"
@@ -457,7 +457,7 @@ EOF
 config_shadowsocks_rust(){
     local server_value="\"0.0.0.0\""
     if get_ipv6; then
-        server_value="[\"[::0]\",\"0.0.0.0\"]"
+        server_value=="\"::\""
     fi
 
     mkdir -p "$(dirname ${shadowsocks_rust_config})"
