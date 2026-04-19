@@ -124,8 +124,12 @@ get_ip(){
 get_ipv6(){
     local ipv6
     ipv6=$(wget -qO- -t1 -T2 http://ipv6.icanhazip.com)
-    [ -z "${ipv6}" ] && return 1
-    return 0
+    if [ -z "${ipv6}" ]; then
+        return 1
+    else
+        echo "${ipv6}"
+        return 0
+    fi
 }
 
 get_opsy(){
@@ -417,8 +421,8 @@ install_plugin(){
 
 config_shadowsocks_libev(){
     local server_value="\"0.0.0.0\""
-    if get_ipv6; then
-        server_value="\"::\"",
+    if get_ipv6 > /dev/null 2>&1; then
+        server_value="\"::\""
     fi
 
     mkdir -p "$(dirname ${shadowsocks_libev_config})"
@@ -456,8 +460,8 @@ EOF
 
 config_shadowsocks_rust(){
     local server_value="\"0.0.0.0\""
-    if get_ipv6; then
-        server_value=="\"::\""
+    if get_ipv6 > /dev/null 2>&1; then
+        server_value="\"::\""
     fi
 
     mkdir -p "$(dirname ${shadowsocks_rust_config})"
@@ -527,9 +531,14 @@ start_shadowsocks_rust(){
 
 install_completed_libev(){
     clear
+    local IP=$(get_ip)
+    local IPv6=$(get_ipv6)
     echo
     echo -e "Congratulations, ${green}${software[0]}${plain} server install completed!"
-    echo -e "Your Server IP        : ${red} $(get_ip) ${plain}"
+    echo -e "Your Server IP        : ${red} ${IP} ${plain}"
+    if [ -n "${IPv6}" ]; then
+        echo -e "Your Server IPv6      : ${red} ${IPv6} ${plain}"
+    fi
     echo -e "Your Server Port      : ${red} ${shadowsocksport} ${plain}"
     echo -e "Your Password         : ${red} ${shadowsockspwd} ${plain}"
     echo -e "Your Encryption Method: ${red} ${shadowsockscipher} ${plain}"
@@ -541,9 +550,14 @@ install_completed_libev(){
 
 install_completed_rust(){
     clear
+    local IP=$(get_ip)
+    local IPv6=$(get_ipv6)
     echo
     echo -e "Congratulations, ${green}${software[1]}${plain} server install completed!"
-    echo -e "Your Server IP        : ${red} $(get_ip) ${plain}"
+    echo -e "Your Server IP        : ${red} ${IP} ${plain}"
+    if [ -n "${IPv6}" ]; then
+        echo -e "Your Server IPv6      : ${red} ${IPv6} ${plain}"
+    fi
     echo -e "Your Server Port      : ${red} ${shadowsocksport} ${plain}"
     echo -e "Your Password         : ${red} ${shadowsockspwd} ${plain}"
     echo -e "Your Encryption Method: ${red} ${shadowsockscipher} ${plain}"
@@ -555,19 +569,30 @@ install_completed_rust(){
 
 qr_generate_libev(){
     if [ "$(command -v qrencode)" ]; then
-        local tmp qr_code plugin_encoded
+        local tmp qr_code qr_code_v6 plugin_encoded
+        local IP=$(get_ip)
+        local IPv6=$(get_ipv6)
         if [ "${plugin_name}" != "None" ]; then
             # SIP003 URL format with plugin
             tmp=$(echo -n "${shadowsockscipher}:${shadowsockspwd}" | base64 -w0 | sed 's/=//g')
             plugin_encoded=$(echo -n "${plugin_name};${plugin_opts}" | base64 -w0 | sed 's/=//g')
-            qr_code="ss://${tmp}@$(get_ip):${shadowsocksport}/?plugin=${plugin_encoded}"
+            qr_code="ss://${tmp}@${IP}:${shadowsocksport}/?plugin=${plugin_encoded}"
+            [ -n "${IPv6}" ] && qr_code_v6="ss://${tmp}@[${IPv6}]:${shadowsocksport}/?plugin=${plugin_encoded}"
         else
-            tmp=$(echo -n "${shadowsockscipher}:${shadowsockspwd}@$(get_ip):${shadowsocksport}" | base64 -w0)
+            tmp=$(echo -n "${shadowsockscipher}:${shadowsockspwd}@${IP}:${shadowsocksport}" | base64 -w0)
             qr_code="ss://${tmp}"
+            if [ -n "${IPv6}" ]; then
+                tmp_v6=$(echo -n "${shadowsockscipher}:${shadowsockspwd}@[${IPv6}]:${shadowsocksport}" | base64 -w0)
+                qr_code_v6="ss://${tmp_v6}"
+            fi
         fi
         echo
-        echo 'Your QR Code: (For Shadowsocks Windows, OSX, Android and iOS clients)'
+        echo 'Your QR Code (IPv4):'
         echo -e "${green} ${qr_code} ${plain}"
+        if [ -n "${qr_code_v6}" ]; then
+            echo 'Your QR Code (IPv6):'
+            echo -e "${green} ${qr_code_v6} ${plain}"
+        fi
         echo -n "${qr_code}" | qrencode -s8 -o "${cur_dir}"/shadowsocks_libev_qr.png
         echo 'Your QR Code has been saved as a PNG file path:'
         echo -e "${green} ${cur_dir}/shadowsocks_libev_qr.png ${plain}"
@@ -576,19 +601,30 @@ qr_generate_libev(){
 
 qr_generate_rust(){
     if [ "$(command -v qrencode)" ]; then
-        local tmp qr_code plugin_encoded
+        local tmp qr_code qr_code_v6 plugin_encoded
+        local IP=$(get_ip)
+        local IPv6=$(get_ipv6)
         if [ "${plugin_name}" != "None" ]; then
             # SIP003 URL format with plugin
             tmp=$(echo -n "${shadowsockscipher}:${shadowsockspwd}" | base64 -w0 | sed 's/=//g')
             plugin_encoded=$(echo -n "${plugin_name};${plugin_opts}" | base64 -w0 | sed 's/=//g')
-            qr_code="ss://${tmp}@$(get_ip):${shadowsocksport}/?plugin=${plugin_encoded}"
+            qr_code="ss://${tmp}@${IP}:${shadowsocksport}/?plugin=${plugin_encoded}"
+            [ -n "${IPv6}" ] && qr_code_v6="ss://${tmp}@[${IPv6}]:${shadowsocksport}/?plugin=${plugin_encoded}"
         else
-            tmp=$(echo -n "${shadowsockscipher}:${shadowsockspwd}@$(get_ip):${shadowsocksport}" | base64 -w0)
+            tmp=$(echo -n "${shadowsockscipher}:${shadowsockspwd}@${IP}:${shadowsocksport}" | base64 -w0)
             qr_code="ss://${tmp}"
+            if [ -n "${IPv6}" ]; then
+                tmp_v6=$(echo -n "${shadowsockscipher}:${shadowsockspwd}@[${IPv6}]:${shadowsocksport}" | base64 -w0)
+                qr_code_v6="ss://${tmp_v6}"
+            fi
         fi
         echo
-        echo 'Your QR Code: (For Shadowsocks Windows, OSX, Android and iOS clients)'
+        echo 'Your QR Code (IPv4):'
         echo -e "${green} ${qr_code} ${plain}"
+        if [ -n "${qr_code_v6}" ]; then
+            echo 'Your QR Code (IPv6):'
+            echo -e "${green} ${qr_code_v6} ${plain}"
+        fi
         echo -n "${qr_code}" | qrencode -s8 -o "${cur_dir}"/shadowsocks_rust_qr.png
         echo 'Your QR Code has been saved as a PNG file path:'
         echo -e "${green} ${cur_dir}/shadowsocks_rust_qr.png ${plain}"
